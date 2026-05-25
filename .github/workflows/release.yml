@@ -37,7 +37,7 @@ jobs:
 
   build-windows:
     name: Build (Windows)
-    runs-on: windows-2025-vs2026 
+    runs-on: windows-2025-vs2026
     needs: [validate]
     steps:
       - uses: actions/checkout@v6
