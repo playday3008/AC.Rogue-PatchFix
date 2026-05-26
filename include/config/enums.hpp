@@ -2,18 +2,6 @@
 
 #include <cstdint>
 
-enum class FovMode : std::uint8_t {
-    Auto     = 0,
-    VertPlus = 1,
-    HorPlus  = 2,
-};
-
-enum class MultiMonitor : std::uint8_t {
-    Auto        = 0,
-    ForceSingle = 1,
-    ForceMulti  = 2,
-};
-
 enum class Language : std::uint8_t {
     None        = 0,
     English     = 1,

@@ -93,60 +93,10 @@ namespace hooks {
     };
 
     template<>
-    struct default_parser<FovMode> {
-        [[maybe_unused]] static auto operator()(const std::string &s) -> FovMode {
-            constexpr auto table = std::to_array<std::pair<std::string_view, FovMode>>({
-                {"Auto", FovMode::Auto},
-                {"VertPlus", FovMode::VertPlus},
-                {"HorPlus", FovMode::HorPlus},
-            });
-            return detail::parse_enum(s, table, FovMode::Auto);
-        }
-    };
-
-    template<>
-    struct default_parser<MultiMonitor> {
-        [[maybe_unused]] static auto operator()(const std::string &s) -> MultiMonitor {
-            constexpr auto table = std::to_array<std::pair<std::string_view, MultiMonitor>>({
-                {"Auto", MultiMonitor::Auto},
-                {"Single", MultiMonitor::ForceSingle},
-                {"Multi", MultiMonitor::ForceMulti},
-                {"Triple", MultiMonitor::ForceMulti},
-            });
-            return detail::parse_enum(s, table, MultiMonitor::Auto);
-        }
-    };
-
-    struct ratio_parser {
-        [[maybe_unused]] static auto operator()(const std::string &s) -> float {
-            std::string_view str(s);
-            if (str.empty() || str == "0") {
-                return 0.0F;
-            }
-            auto colon = str.find(':');
-            if (colon != std::string_view::npos) {
-                float w = 0.0F;
-                float h = 0.0F;
-                detail::sv_from_chars(str.substr(0, colon), w);
-                detail::sv_from_chars(str.substr(colon + 1), h);
-                return (h > 0.0F) ? w / h : 0.0F;
-            }
-            float val = 0.0F;
-            detail::sv_from_chars(str, val);
-            return val;
-        }
-    };
-
-    template<>
     struct default_parser<Language> {
         [[maybe_unused]] static auto operator()(const std::string &s) -> Language {
             return detail::parse_enum(s, lang::k_names, Language::None);
         }
     };
 
-    struct clamped_unit_parser {
-        [[maybe_unused]] static auto operator()(const std::string &s) -> float {
-            return std::clamp(default_parser<float> {}(s), 0.0F, 1.0F);
-        }
-    };
 } // namespace hooks
