@@ -23,6 +23,8 @@ namespace patterns {
         std::optional<uintptr_t> lang_bf_write;
         std::optional<uintptr_t> lang_setup;
         std::optional<uintptr_t> get_language;
+        std::optional<uintptr_t> fps_sleep_branch;
+        std::optional<uintptr_t> fps_frame_time;
     };
 
     struct ScanEntry {
@@ -49,6 +51,8 @@ namespace patterns {
         {.name="LANG_BF_WRITE",       .bytes="0F B6 44 24 ? 89 3D ? ? ? ? 89 1D ? ? ? ? 89 05",                                            .offset=0x05, .field=&ResolvedAddresses::lang_bf_write},
         {.name="LANG_SETUP",          .bytes="8B CB E8 ? ? ? ? E8 ? ? ? ? 8B C8 E8 ? ? ? ?",                                               .offset=0x00, .field=&ResolvedAddresses::lang_setup},
         {.name="GET_LANGUAGE",        .bytes="48 83 EC 28 8B 05 ? ? ? ? 83 F8 17 7C",                                                      .offset=0x00, .field=&ResolvedAddresses::get_language},
+        {.name="FPS_SLEEP_BRANCH",    .bytes="48 89 43 78 48 2B BB 80 00 00 00 48 3B 43 70 73",                                            .offset=0x0F, .field=&ResolvedAddresses::fps_sleep_branch},
+        {.name="FPS_FRAME_TIME",      .bytes="79 04 F3 0F 58 C1 F3 0F 59 05",                                                              .offset=0x06, .field=&ResolvedAddresses::fps_frame_time},
     });
     // clang-format on
 
