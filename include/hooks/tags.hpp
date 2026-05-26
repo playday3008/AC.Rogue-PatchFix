@@ -7,4 +7,5 @@ namespace hooks {
     struct ViewportScalingHook {};
     struct DisplayDetectionHook {};
     struct FOVCorrectionHook {};
+    struct FPSUnlockHook {};
 } // namespace hooks

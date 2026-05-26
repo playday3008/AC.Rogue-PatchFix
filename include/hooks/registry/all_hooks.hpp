@@ -9,5 +9,6 @@ namespace hooks {
                                ViewportFittingHook,
                                ViewportScalingHook,
                                DisplayDetectionHook,
-                               FOVCorrectionHook>;
+                               FOVCorrectionHook,
+                               FPSUnlockHook>;
 } // namespace hooks
