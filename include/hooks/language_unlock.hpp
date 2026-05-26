@@ -17,20 +17,16 @@ namespace hooks {
         using hard_deps = dep_list<>;
         using soft_deps = dep_list<>;
 
-        static constexpr auto required_patterns = std::array<PatternField, 3> {
-            &patterns::ResolvedAddresses::get_game_id,
+        static constexpr auto required_patterns = std::array<PatternField, 1> {
             &patterns::ResolvedAddresses::lang_bf_write,
-            &patterns::ResolvedAddresses::lang_setup,
         };
         static constexpr auto optional_patterns = std::array<PatternField, 1> {
-            &patterns::ResolvedAddresses::get_language,
+            &patterns::ResolvedAddresses::get_game_id,
         };
 
         struct Config : config_base<Config> {
             ini_field<bool>       unlock_all {"Language", "UnlockAll", false};
-            ini_field<Language>   ui_language {"Language", "UILanguage", Language::None};
-            static constexpr auto field_ptrs =
-                std::tuple {&Config::unlock_all, &Config::ui_language};
+            static constexpr auto field_ptrs = std::tuple {&Config::unlock_all};
         };
 
         static auto install(const patterns::ResolvedAddresses &addrs) -> bool;

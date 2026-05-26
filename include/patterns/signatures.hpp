@@ -10,8 +10,6 @@ namespace patterns {
     struct ResolvedAddresses {
         std::optional<uintptr_t> get_game_id;
         std::optional<uintptr_t> lang_bf_write;
-        std::optional<uintptr_t> lang_setup;
-        std::optional<uintptr_t> get_language;
     };
 
     struct ScanEntry {
@@ -21,15 +19,13 @@ namespace patterns {
         std::optional<uintptr_t> ResolvedAddresses::*field;
     };
 
-    // Byte signatures TBD — fill from IDA analysis of unpacked ACS.exe
     // clang-format off
     inline constexpr auto scan_entries = std::to_array<ScanEntry>({
-        {.name="GET_GAME_ID",   .bytes="", .offset=0x00, .field=&ResolvedAddresses::get_game_id},
-        {.name="LANG_BF_WRITE", .bytes="", .offset=0x00, .field=&ResolvedAddresses::lang_bf_write},
-        {.name="LANG_SETUP",    .bytes="", .offset=0x00, .field=&ResolvedAddresses::lang_setup},
-        {.name="GET_LANGUAGE",  .bytes="", .offset=0x00, .field=&ResolvedAddresses::get_language},
+        {.name="GET_GAME_ID",   .bytes="48 83 EC ? E8 ? ? ? ? 8B 15 ? ? ? ? 8B 0D", .offset=0x00, .field=&ResolvedAddresses::get_game_id},
+        {.name="LANG_BF_WRITE", .bytes="89 3D ? ? ? ? 89 1D ? ? ? ? 89 05",         .offset=0x00, .field=&ResolvedAddresses::lang_bf_write},
     });
     // clang-format on
 
+    [[nodiscard]] auto wait_for_code_ready() -> bool;
     [[nodiscard]] auto scan_all(ResolvedAddresses &out) -> bool;
 } // namespace patterns

@@ -41,6 +41,13 @@ static void init(HMODULE hModule) {
     }
     log::get()->trace("INI loaded from {}", ini_path.string());
 
+    // VMProtect decrypts .text from the entry point; our DLL loads before that.
+    // Poll until the code section is readable.
+    if (!patterns::wait_for_code_ready()) {
+        log::get()->error("Aborting — code section never became ready");
+        return;
+    }
+
     patterns::ResolvedAddresses addrs;
     bool                        all = patterns::scan_all(addrs);
     log::get()->info("Pattern scan: {}", all ? "all found" : "some missing");
@@ -61,11 +68,17 @@ static void init(HMODULE hModule) {
     log::get()->info("File watcher started for {}", ini_path.string());
 }
 
+// NOLINTNEXTLINE(modernize-use-trailing-return-type)
+static auto CALLBACK deferred_init(LPVOID param) -> DWORD {
+    init(static_cast<HMODULE>(param));
+    return 0;
+}
+
 // NOLINTNEXTLINE(misc-use-internal-linkage, modernize-use-trailing-return-type)
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID /*unused*/) {
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(hModule);
-        init(hModule);
+        CreateThread(nullptr, 0, deferred_init, hModule, 0, nullptr);
     } else if (reason == DLL_PROCESS_DETACH) {
         log::shutdown();
         g_watcher.reset();

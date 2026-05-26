@@ -8,6 +8,8 @@
 #include <string>
 #include <string_view>
 
+#include <Windows.h>
+
 #include <Hooking.Patterns.h>
 
 #include "logger.hpp" // IWYU pragma: keep
@@ -24,6 +26,22 @@
     }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<uintptr_t>(pattern.get_first(offset));
+}
+
+auto patterns::wait_for_code_ready() -> bool {
+    constexpr int max_attempts = 200;
+    constexpr int poll_ms      = 50;
+
+    auto probe = scan_entries[0].bytes;
+    for (int i = 0; i < max_attempts; ++i) {
+        Sleep(poll_ms);
+        if (hook::pattern(probe).size() > 0) {
+            log::get()->trace("Code section ready after {}ms", (i + 1) * poll_ms);
+            return true;
+        }
+    }
+    log::get()->error("Code section not ready after {}ms", max_attempts * poll_ms);
+    return false;
 }
 
 auto patterns::scan_all(ResolvedAddresses &out) -> bool {

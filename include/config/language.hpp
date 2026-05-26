@@ -28,7 +28,7 @@ namespace lang {
     }
 
     inline constexpr uint32_t k_all_languages = make_all_languages();
-    static_assert(k_all_languages == 0x007FFFFEU);
+    static_assert(k_all_languages == 0x00FFFFFEU);
 
     // clang-format off
     inline constexpr auto k_names = std::to_array<std::pair<std::string_view, Language>>({
@@ -39,6 +39,7 @@ namespace lang {
         {"Polish",      Language::Polish},
         {"German",      Language::German},
         {"ChineseTrad", Language::ChineseTrad},
+        {"ChineseSimp", Language::ChineseSimp},
         {"Hungarian",   Language::Hungarian},
         {"Italian",     Language::Italian},
         {"Japanese",    Language::Japanese},

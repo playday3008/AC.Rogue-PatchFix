@@ -2,10 +2,10 @@
 
 #include <cstdint>
 
-#include <utility>
+#include <atomic>
 
-#include <injector/assembly.hpp>
-#include <injector/calling.hpp>
+#include <Windows.h>
+
 #include <injector/injector.hpp>
 
 #include "config/language.hpp"
@@ -15,57 +15,62 @@
 
 namespace hooks {
     namespace {
-        enum class GameId : uint16_t {
-            uplay_ww   = 0x37FU,
-            steam_ww   = 0x3A6U,
-            uplay_ru   = 0x4A2U,
-            steam_ru   = 0x4A3U,
-            uplay_asia = 0x67DU,
-            steam_asia = 0x67EU,
-        };
+        std::atomic<bool> s_stop_watchdog {false};
+        HANDLE            s_watchdog_thread = nullptr;
 
-        uintptr_t s_is_steam_addr      = 0;
-        uintptr_t s_set_audio_bf_addr  = 0;
-        uint32_t *s_subtitle_bf_global = nullptr;
-        uint32_t *s_audio_bf_global    = nullptr;
-        uint32_t *s_lang_idx_global    = nullptr;
-        Language  s_ui_language        = Language::None;
-        GameId    s_real_game_id       = GameId::uplay_ww;
+        uint32_t *s_menu_bf_global  = nullptr;
+        uint32_t *s_audio_bf_global = nullptr;
+        uint32_t *s_sub_bf_global   = nullptr;
 
-        struct LangBitfieldPatch {
-            [[maybe_unused]] static void operator()(injector::reg_pack &regs) {
-                auto orig = *s_subtitle_bf_global;
+        // Watchdog: wait for globals to be populated, then overwrite with all-languages.
+        // No code modification — avoids triggering VMProtect integrity checks.
+        // GetGameId is called once during startup and cached by the protection layer,
+        // so overwriting after init is safe.
+        auto CALLBACK watchdog_proc(LPVOID /*unused*/) -> DWORD {
+            constexpr int      poll_ms     = 100;
+            constexpr int      max_wait_ms = 30000;
+            constexpr int      settle_ms   = 3000;
+            constexpr uint32_t unlock_mask = lang::k_all_languages;
 
-                bool is_steam = injector::fastcall<uint8_t()>::call(s_is_steam_addr) != 0;
-
-                if (lang::has(orig, Language::Russian)) {
-                    s_real_game_id = is_steam ? GameId::steam_ru : GameId::uplay_ru;
-                } else if (lang::has(orig, Language::Korean) &&
-                           lang::has(orig, Language::ChineseTrad)) {
-                    s_real_game_id = is_steam ? GameId::steam_asia : GameId::uplay_asia;
-                } else {
-                    s_real_game_id = is_steam ? GameId::steam_ww : GameId::uplay_ww;
-                }
-
-                *s_subtitle_bf_global = lang::k_all_languages;
-                *s_audio_bf_global    = lang::k_all_languages;
-
-                if (s_lang_idx_global != nullptr && s_ui_language != Language::None) {
-                    *s_lang_idx_global = std::to_underlying(s_ui_language);
-                }
-
-                regs.rbx = lang::k_all_languages;
-                regs.rcx = regs.rbx;
-                injector::fastcall<void(uint32_t)>::call(s_set_audio_bf_addr,
-                                                         static_cast<uint32_t>(regs.rcx));
+            for (int waited = 0; waited < max_wait_ms && !s_stop_watchdog.load();
+                 waited += poll_ms) {
+                Sleep(poll_ms);
+                if (*s_menu_bf_global != 0)
+                    break;
             }
-        };
 
-        struct GetGameIdGuard {
-            [[maybe_unused]] static void operator()(injector::reg_pack &regs) {
-                regs.rax = std::to_underlying(s_real_game_id);
+            if (*s_menu_bf_global == 0) {
+                log::get()->error("LanguageUnlockHook: bitfield globals never populated");
+                return 1;
             }
-        };
+
+            log::get()->trace("LanguageUnlockHook: original menu=0x{:X} sub=0x{:X} audio=0x{:X}",
+                              *s_menu_bf_global,
+                              *s_sub_bf_global,
+                              *s_audio_bf_global);
+
+            // Let GetGameId run with original values before we overwrite.
+            Sleep(settle_ms);
+
+            *s_menu_bf_global  = unlock_mask;
+            *s_sub_bf_global   = unlock_mask;
+            *s_audio_bf_global = unlock_mask;
+
+            log::get()->info("LanguageUnlockHook: bitfields patched to 0x{:X}", unlock_mask);
+
+            // Keep patching — the game may re-read localization.lang or DLC may clear bits.
+            while (!s_stop_watchdog.load()) {
+                Sleep(1000);
+                if (*s_menu_bf_global != unlock_mask)
+                    *s_menu_bf_global = unlock_mask;
+                if (*s_sub_bf_global != unlock_mask)
+                    *s_sub_bf_global = unlock_mask;
+                if (*s_audio_bf_global != unlock_mask)
+                    *s_audio_bf_global = unlock_mask;
+            }
+
+            return 0;
+        }
     } // namespace
 
     auto HookTraits<LanguageUnlockHook>::install(const patterns::ResolvedAddresses &addrs) -> bool {
@@ -73,60 +78,35 @@ namespace hooks {
 
         const auto &cfg        = config<LanguageUnlockHook>();
         bool        unlock_all = cfg.unlock_all.get();
-        s_ui_language          = cfg.ui_language.get();
-
-        if (!unlock_all && s_ui_language == Language::None) {
-            log::get()->info("LanguageUnlockHook: nothing enabled, skipping");
-            return true;
-        }
-
-        if (s_ui_language != Language::None && addrs.get_language.has_value()) {
-            s_lang_idx_global =
-                injector::ReadRelativeOffset(addrs.get_language.value() + 6).get<uint32_t>();
-            *s_lang_idx_global = std::to_underlying(s_ui_language);
-            log::get()->trace("LanguageUnlockHook: lang_idx=0x{:X} override={}",
-                              reinterpret_cast<uintptr_t>(s_lang_idx_global),
-                              std::to_underlying(s_ui_language));
-        } else if (s_ui_language != Language::None) {
-            log::get()->warn("LanguageUnlockHook: UILanguage set but GET_LANGUAGE pattern failed");
-        }
 
         if (!unlock_all) {
-            log::get()->info("LanguageUnlockHook: UILanguage only (UnlockAll=false)");
+            log::get()->info("LanguageUnlockHook: disabled, skipping");
             return true;
         }
 
-        auto get_game_id   = addrs.get_game_id.value();
         auto lang_bf_write = addrs.lang_bf_write.value();
-        auto lang_setup    = addrs.lang_setup.value();
 
-        s_is_steam_addr     = injector::GetBranchDestination(get_game_id + 0x12).as_int();
-        s_set_audio_bf_addr = injector::GetBranchDestination(lang_setup + 0x02).as_int();
+        // Resolve bitfield global addresses (read-only — no code modification).
+        //   +0:  mov [rip+off], edi   → BF1 (menu)      — disp at +2
+        //   +6:  mov [rip+off], ebx   → BF3 (audio)     — disp at +8
+        //   +22: mov [rip+off], esi   → BF2 (subtitle)  — disp at +24
+        s_menu_bf_global  = injector::ReadRelativeOffset(lang_bf_write + 2).get<uint32_t>();
+        s_audio_bf_global = injector::ReadRelativeOffset(lang_bf_write + 8).get<uint32_t>();
+        s_sub_bf_global   = injector::ReadRelativeOffset(lang_bf_write + 24).get<uint32_t>();
 
-        s_subtitle_bf_global = injector::ReadRelativeOffset(lang_bf_write + 2).get<uint32_t>();
-        s_audio_bf_global    = injector::ReadRelativeOffset(lang_bf_write + 8).get<uint32_t>();
-
-        // Pre-patch bitfields before game main calls GetLanguage/SetGameLanguage.
-        // The lang file loader may overwrite these later — the callback re-patches.
-        *s_subtitle_bf_global = lang::k_all_languages;
-        *s_audio_bf_global    = lang::k_all_languages;
-
-        log::get()->trace("LanguageUnlockHook: IsSteam=0x{:X} SetAudioBf=0x{:X}",
-                          s_is_steam_addr,
-                          s_set_audio_bf_addr);
-        log::get()->trace("LanguageUnlockHook: subtitle_bf=0x{:X} audio_bf=0x{:X}",
-                          reinterpret_cast<uintptr_t>(s_subtitle_bf_global),
+        log::get()->trace("LanguageUnlockHook: menu_bf=0x{:X} sub_bf=0x{:X} audio_bf=0x{:X}",
+                          reinterpret_cast<uintptr_t>(s_menu_bf_global),
+                          reinterpret_cast<uintptr_t>(s_sub_bf_global),
                           reinterpret_cast<uintptr_t>(s_audio_bf_global));
 
-        injector::MakeInline<LangBitfieldPatch>(lang_setup, lang_setup + 7);
+        s_stop_watchdog.store(false);
+        s_watchdog_thread = CreateThread(nullptr, 0, watchdog_proc, nullptr, 0, nullptr);
+        if (s_watchdog_thread == nullptr) {
+            log::get()->error("LanguageUnlockHook: failed to create watchdog thread");
+            return false;
+        }
 
-        constexpr uintptr_t get_game_id_nop_size = 9;
-        constexpr uintptr_t get_game_id_jmp_size = 5;
-        injector::MakeNOP(get_game_id, get_game_id_nop_size);
-        injector::MakeInline<GetGameIdGuard>(get_game_id);
-        injector::MakeRET(get_game_id + get_game_id_jmp_size);
-
-        log::get()->trace("LanguageUnlockHook: installed");
+        log::get()->info("LanguageUnlockHook: watchdog started (data-only, no code patches)");
         return true;
     }
 } // namespace hooks
