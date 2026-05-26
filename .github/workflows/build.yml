@@ -90,10 +90,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: AC.Rogue.PatchFix-windows-${{ github.sha }}
+          name: AC.Syndicate.PatchFix-windows-${{ github.sha }}
           path: |
-            build/Release/AC.Rogue.PatchFix.asi
-            config/AC.Rogue.PatchFix.ini
+            build/Release/AC.Syndicate.PatchFix.asi
+            config/AC.Syndicate.PatchFix.ini
           if-no-files-found: error
 
   build-linux:
@@ -141,7 +141,7 @@ jobs:
         run: cmake --build --preset linux-x64-release
 
       - name: Save Release artifact
-        run: cp build/AC.Rogue.PatchFix.asi /tmp/AC.Rogue.PatchFix.asi
+        run: cp build/AC.Syndicate.PatchFix.asi /tmp/AC.Syndicate.PatchFix.asi
 
       - name: Configure Debug
         run: |
@@ -154,8 +154,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: AC.Rogue.PatchFix-linux-${{ github.sha }}
+          name: AC.Syndicate.PatchFix-linux-${{ github.sha }}
           path: |
-            /tmp/AC.Rogue.PatchFix.asi
-            config/AC.Rogue.PatchFix.ini
+            /tmp/AC.Syndicate.PatchFix.asi
+            config/AC.Syndicate.PatchFix.ini
           if-no-files-found: error

@@ -52,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: windows-asi
-          path: build/Release/AC.Rogue.PatchFix.asi
+          path: build/Release/AC.Syndicate.PatchFix.asi
           if-no-files-found: error
 
   build-linux:
@@ -104,7 +104,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: linux-asi
-          path: build/AC.Rogue.PatchFix.asi
+          path: build/AC.Syndicate.PatchFix.asi
           if-no-files-found: error
 
   release:
@@ -130,9 +130,9 @@ jobs:
 
       - name: Prepare release assets
         run: |
-          cp artifacts/windows/AC.Rogue.PatchFix.asi AC.Rogue.PatchFix.asi
-          cp artifacts/linux/AC.Rogue.PatchFix.asi AC.Rogue.PatchFix-linux.asi
-          cp config/AC.Rogue.PatchFix.ini AC.Rogue.PatchFix.ini
+          cp artifacts/windows/AC.Syndicate.PatchFix.asi AC.Syndicate.PatchFix.asi
+          cp artifacts/linux/AC.Syndicate.PatchFix.asi AC.Syndicate.PatchFix-linux.asi
+          cp config/AC.Syndicate.PatchFix.ini AC.Syndicate.PatchFix.ini
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
@@ -143,6 +143,6 @@ jobs:
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
           files: |
-            AC.Rogue.PatchFix.asi
-            AC.Rogue.PatchFix-linux.asi
-            AC.Rogue.PatchFix.ini
+            AC.Syndicate.PatchFix.asi
+            AC.Syndicate.PatchFix-linux.asi
+            AC.Syndicate.PatchFix.ini
