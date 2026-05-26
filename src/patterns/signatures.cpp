@@ -1,5 +1,6 @@
 #include "patterns/signatures.hpp"
 
+#include <cstddef>
 #include <cstdint>
 
 #include <expected>
