@@ -42,13 +42,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Restore CMake deps cache
-        uses: actions/cache@v5
-        with:
-          path: build/_deps
-          key: cmake-deps-Windows-${{ hashFiles('cmake/deps/*.cmake') }}
-          restore-keys: cmake-deps-Windows-
-
       - name: Configure Release
         run: cmake --preset windows-x64-release
 
@@ -100,13 +93,6 @@ jobs:
         run: |
           /tmp/msvc-wine/vsdownload.py --accept-license --dest ~/.msvc
           /tmp/msvc-wine/install.sh ~/.msvc
-
-      - name: Restore CMake deps cache
-        uses: actions/cache@v5
-        with:
-          path: build/_deps
-          key: cmake-deps-Linux-${{ hashFiles('cmake/deps/*.cmake') }}
-          restore-keys: cmake-deps-Linux-
 
       - name: Configure Release
         run: cmake --preset linux-x64-release
